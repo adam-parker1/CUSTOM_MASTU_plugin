@@ -1,19 +1,19 @@
 #include "custom_mastu.h"
 
+#include <boost/algorithm/string.hpp>
+#include <c++/UDA.hpp>
 #include <clientserver/initStructs.h>
 #include <clientserver/stringUtils.h>
 #include <clientserver/udaStructs.h>
 #include <clientserver/udaTypes.h>
+#include <fmt/format.h>
 #include <plugins/pluginStructs.h>
 #include <plugins/udaPlugin.h>
-#include <c++/UDA.hpp>
-#include <fmt/format.h>
-#include <boost/algorithm/string.hpp>
 
+#include "ext_include/nlohmann/json.hpp"
+#include "utils/uda_plugin_helpers.hpp"
 #include <deque>
 #include <fstream>
-#include "utils/uda_plugin_helpers.hpp"
-#include "ext_include/nlohmann/json.hpp"
 
 #include <cmath>
 #include <sstream>
@@ -347,7 +347,6 @@ int CustomMastuPlugin::custom_passive_structures(IDAM_PLUGIN_INTERFACE* interfac
         return setReturnDataShortScalar(data_block, temp_type, nullptr);
     }
     return custom_passive(interface, root_tree, split_vec, element);
-
 }
 
 int CustomMastuPlugin::pf_coil_current(IDAM_PLUGIN_INTERFACE* interface) {
@@ -375,12 +374,12 @@ int CustomMastuPlugin::pf_coil_current(IDAM_PLUGIN_INTERFACE* interface) {
     request << "UDA::get(signal=" << signal_str << ",source=" << source << ")";
     const auto request_str = request.str();
 
-    if ( split_signal.back() == "PC" ) {
-        std::vector<float> temporary_vector { 0. };
+    if (split_signal.back() == "PC") {
+        std::vector<float> temporary_vector{0.};
         error_code = imas_json_plugin::uda_helpers::setReturnDataArrayType_Vec(data_block, temporary_vector);
     } else {
         error_code = callPlugin(interface->pluginList, request_str.c_str(), interface);
-        if ( split_signal.back() == "P1" ) {
+        if (split_signal.back() == "P1") {
             auto* data = reinterpret_cast<float*>(data_block->data);
             const size_t array_size(data_block->data_n);
             const auto span = gsl::span{data, array_size};
@@ -393,7 +392,7 @@ int CustomMastuPlugin::pf_coil_current(IDAM_PLUGIN_INTERFACE* interface) {
 }
 
 int CustomMastuPlugin::pf_conn_matrix(IDAM_PLUGIN_INTERFACE* interface) {
-    
+
     DATA_BLOCK* data_block = interface->data_block;
     REQUEST_DATA* request_data = interface->request_data;
 
@@ -423,7 +422,7 @@ int CustomMastuPlugin::pf_conn_matrix(IDAM_PLUGIN_INTERFACE* interface) {
     } else {
         RAISE_PLUGIN_ERROR("CustomMastuPlugin::pf_conn_matrix - Cannot open JSON globals file")
     }
-    
+
     // rows , columns
     std::vector<size_t> shape{matrix_json.size(), matrix_json.front().size()};
 
@@ -431,13 +430,12 @@ int CustomMastuPlugin::pf_conn_matrix(IDAM_PLUGIN_INTERFACE* interface) {
     flat_matrix_vector.reserve(matrix_json.front().size() * matrix_json.size());
 
     for (int i = 0; i < matrix_json.front().size(); i++) { // columns
-        for (int j = 0; j < matrix_json.size(); j++) { // rows
+        for (int j = 0; j < matrix_json.size(); j++) {     // rows
             flat_matrix_vector.push_back(matrix_json[j][i]);
         }
     }
     return setReturnDataIntArray(interface->data_block, flat_matrix_vector.data(), shape.size(), shape.data(), nullptr);
 }
-
 
 int CustomMastu(IDAM_PLUGIN_INTERFACE* plugin_interface) {
     //----------------------------------------------------------------------------------------
