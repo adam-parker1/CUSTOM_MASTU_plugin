@@ -31,6 +31,7 @@ uda_plugin(
     EXTRA_INCLUDE_DIRS
       ${UDA_CLIENT_INCLUDE_DIRS}
       ${Boost_INCLUDE_DIRS}
+      ext_include
     EXTRA_LINK_DIRS
       ${UDA_CLIENT_LIBRARY_DIRS}
       ${Boost_LIBRARY_DIRS}
