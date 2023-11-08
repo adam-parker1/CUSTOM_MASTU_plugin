@@ -405,7 +405,7 @@ int CustomMastuPlugin::pf_conn_matrix(IDAM_PLUGIN_INTERFACE* interface) {
     std::string ps_name_str{ps_name};
 
     std::string const map_dir = getenv("UDA_JSON_MAPPING_DIR"); // NOLINT(concurrency-mt-unsafe)
-    auto file_path = map_dir + "/mastu/mappings/pf_active/pf_connections.json";
+    auto file_path = map_dir + "/mastu/pf_active/pf_connections.json";
     std::ifstream conn_file;
     conn_file.open(file_path);
 
@@ -496,7 +496,7 @@ int CustomMastu(IDAM_PLUGIN_INTERFACE* plugin_interface) {
         } else if (STR_IEQUALS(plugin_func, "maxinterfaceversion")) {
             return plugin.max_interface_version(plugin_interface);
         } else if (STR_IEQUALS(plugin_func, "custom_passive_structures")) {
-            return plugin.pf_coil_current(plugin_interface);
+            return plugin.custom_passive_structures(plugin_interface);
         } else if (STR_IEQUALS(plugin_func, "pf_coil_current")) {
             return plugin.pf_coil_current(plugin_interface);
         } else if (STR_IEQUALS(plugin_func, "pf_conn_matrix")) {
