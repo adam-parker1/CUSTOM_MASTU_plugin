@@ -204,8 +204,13 @@ int handle_rectangle(IDAM_PLUGIN_INTERFACE* interface, uda::TreeNode& final_tree
         return 1;
     }
 
+    float output_float = get_float_var(final_tree, final_var, element);
+    if (final_var == "dR" or final_var == "dZ") {
+        output_float = std::abs(output_float);
+    }
+
     return imas_json_plugin::uda_helpers::setReturnDataScalarType<float>(interface->data_block,
-                                                                         get_float_var(final_tree, final_var, element));
+                                                                         output_float);
 }
 
 int handle_oblique(IDAM_PLUGIN_INTERFACE* interface, uda::TreeNode& final_tree, std::string_view final_var,
@@ -225,7 +230,8 @@ int handle_oblique(IDAM_PLUGIN_INTERFACE* interface, uda::TreeNode& final_tree, 
         const auto temp_angle2 = get_float_var(final_tree, "shapeAngle2", element);
         const auto temp_dR = get_float_var(final_tree, "dR", element);
         const auto temp_dZ = get_float_var(final_tree, "dZ", element);
-        auto atan2 = 1 / tan(temp_angle2 * deg2rad);
+        float atan2 = 0.;
+        if ( temp_angle2 > 0. ) atan2 = 1 / tan(temp_angle2 * deg2rad);
         return_code = imas_json_plugin::uda_helpers::setReturnDataScalarType<float>(
             interface->data_block, temp_var - (temp_dR / 2.0) - (temp_dZ / 2.0) * atan2);
     } else if (final_var == "centreZ") {
@@ -234,7 +240,7 @@ int handle_oblique(IDAM_PLUGIN_INTERFACE* interface, uda::TreeNode& final_tree, 
         const auto temp_dR = get_float_var(final_tree, "dR", element);
         const auto temp_dZ = get_float_var(final_tree, "dZ", element);
         return_code = imas_json_plugin::uda_helpers::setReturnDataScalarType<float>(
-            interface->data_block, temp_var - (temp_dR / 2.0) - (temp_dZ / 2.0) * tan(temp_angle1 * deg2rad));
+            interface->data_block, temp_var - (temp_dZ / 2.0) - (temp_dR / 2.0) * tan(temp_angle1 * deg2rad));
     } else if (final_var == "dR") {
         // length_alpha
         const auto temp_angle1 = get_float_var(final_tree, "shapeAngle1", element);
@@ -242,9 +248,10 @@ int handle_oblique(IDAM_PLUGIN_INTERFACE* interface, uda::TreeNode& final_tree, 
             interface->data_block, temp_var / cos(temp_angle1 * deg2rad));
     } else if (final_var == "dZ") {
         // length_beta
-        const auto temp_angle1 = get_float_var(final_tree, "shapeAngle2", element);
+        auto temp_angle2 = get_float_var(final_tree, "shapeAngle2", element);
+        if (temp_angle2 == 0.) temp_angle2 = 90.;
         return_code = imas_json_plugin::uda_helpers::setReturnDataScalarType<float>(
-            interface->data_block, temp_var / sin(temp_angle1 * deg2rad));
+            interface->data_block, temp_var / sin(temp_angle2 * deg2rad));
     } else if (final_var == "shapeAngle1") {
         // alpha
         return_code =
