@@ -111,6 +111,46 @@ constexpr size_t size_of_uda_type(int type_enum)
                     " not implemented for json_imas_mapping cache");
     }
 }
+
+int setReturnGenericData(DATA_BLOCK* data_block, void* value, size_t size, int type, int rank, const size_t* shape, const char* description)
+{
+    initDataBlock(data_block);
+
+    data_block->data_type = type;
+    data_block->data = (char*)malloc(size);
+
+    memcpy(data_block->data, value, size);
+
+    data_block->rank = rank;
+    data_block->dims = (DIMS*)malloc(data_block->rank * sizeof(DIMS));
+
+    for (unsigned int i = 0; i < data_block->rank; i++) {
+        initDimBlock(&data_block->dims[i]);
+    }
+
+    if (description != nullptr) {
+        strncpy(data_block->data_desc, description, STRING_LENGTH);
+        data_block->data_desc[STRING_LENGTH - 1] = '\0';
+    }
+
+    for (unsigned int i = 0; i < data_block->rank; i++) {
+        data_block->dims[i].data_type = UDA_TYPE_UNSIGNED_INT;
+        data_block->dims[i].dim_n = shape[i];
+        data_block->dims[i].compressed = 1;
+        data_block->dims[i].dim0 = 0.0;
+        data_block->dims[i].diff = 1.0;
+        data_block->dims[i].method = 0;
+    }
+
+    int data_n = 1;
+    for (auto i=0; i<data_block->rank; ++i) {
+        data_n *= static_cast<int>(shape[i]);
+    }
+    data_block->data_n = data_n;
+
+    return 0;
+}
+
 } // anon namespace
 
 int tree_check(uda::TreeNode& temp_tree) {
@@ -477,16 +517,12 @@ int CustomMastuPlugin::pf_coil_current(IDAM_PLUGIN_INTERFACE* interface) {
     }
     const uda::Result& data = maybe_result->get();
 
-    std::vector<int> shape;
-    for (const auto& i: data.shape()) {
-        shape.emplace_back(static_cast<int>(i));
-    }
-
     DATA_BLOCK* data_block = interface->data_block;
     const char* raw_data = data.raw_data();
-    error_code = setReturnData(data_block, const_cast<void*>(reinterpret_cast<const void*>(raw_data)), 
-            data.size() * size_of_uda_type(data.uda_type()), 
-            (UDA_TYPE)data.uda_type(), static_cast<int>(data.rank()), shape.data(), nullptr);
+    auto shape = data.shape();
+    error_code = setReturnGenericData(data_block, const_cast<void*>(reinterpret_cast<const void*>(raw_data)), 
+            data.size() * size_of_uda_type(data.uda_type()), static_cast<UDA_TYPE>(data.uda_type()),
+            static_cast<int>(data.rank()), shape.data(), nullptr);
 
     // error_code = callPlugin(interface->pluginList, request_str.c_str(), interface);
     if (split_signal.back() == "P1") {
