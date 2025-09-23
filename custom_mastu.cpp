@@ -32,7 +32,7 @@ class CustomMastuPlugin {
         if (!init_ || STR_IEQUALS(request->function, "init") || STR_IEQUALS(request->function, "initialise")) {
             reset(plugin_interface);
             // Initialise plugin
-            const char* cache = std::getenv("UDA_GEOM_PLUGIN_CLIENT_CACHE");
+            const char* cache = std::getenv("UDA_CUSTOM_MASTU_PLUGIN_CLIENT_CACHE");
             cache_enabled_ = (cache == nullptr) or (std::stoi(cache) > 0);
             init_ = true;
         }
@@ -383,7 +383,7 @@ int CustomMastuPlugin::custom_passive_structures(IDAM_PLUGIN_INTERFACE* interfac
     std::transform(signal_str.begin(), signal_str.end(), signal_str.begin(), ::tolower);
     std::string geom_request = fmt::format("GEOM::get(signal={}, Config=1)", signal_str);
 
-    auto maybe_result = get_data(signal, std::to_string(source), host, port); //throws
+    auto maybe_result = get_data(geom_request, std::to_string(source), host, port); //throws
 
     const uda::Result& data = maybe_result->get();
     if (!data.isTree()) {
@@ -412,13 +412,7 @@ int CustomMastuPlugin::pf_coil_current(IDAM_PLUGIN_INTERFACE* interface) {
 
     //////////////////////////////////////////////////////////////
     //////////////////////////////////////////////////////////////
-    DATA_BLOCK* data_block = interface->data_block;
     REQUEST_DATA* request_data = interface->request_data;
-
-    initDataBlock(data_block);
-    data_block->rank = 0;
-    data_block->dims = nullptr;
-
     int port{0};
     FIND_REQUIRED_INT_VALUE(request_data->nameValueList, port);
     const char* host{nullptr};
@@ -433,13 +427,26 @@ int CustomMastuPlugin::pf_coil_current(IDAM_PLUGIN_INTERFACE* interface) {
     boost::split(split_signal, signal_str, boost::is_any_of("/"));
     if (split_signal.back() == "PC") {
         std::vector<float> temporary_vector{0.};
-        return imas_json_plugin::uda_helpers::setReturnDataArrayType_Vec(data_block, temporary_vector);
+        return imas_json_plugin::uda_helpers::setReturnDataArrayType_Vec(interface->data_block, temporary_vector);
     }
 
     int error_code{1};
 
     auto maybe_result = get_data(signal, std::to_string(source), host, port); //throws
+    if (!maybe_result.has_value()) {
+       throw std::runtime_error("Error retrieving data in pf_coil_current function");
+    }
     const uda::Result& data = maybe_result->get();
+
+    std::vector<int> shape;
+    for (const auto& i: data.shape()) {
+        shape.emplace_back(static_cast<int>(i));
+    }
+
+    DATA_BLOCK* data_block = interface->data_block;
+    const char* raw_data = data.raw_data();
+    error_code = setReturnData(data_block, const_cast<void*>(reinterpret_cast<const void*>(raw_data)), data.size(), 
+            (UDA_TYPE)data.uda_type(), static_cast<int>(data.rank()), shape.data(), nullptr);
 
     // error_code = callPlugin(interface->pluginList, request_str.c_str(), interface);
     if (split_signal.back() == "P1") {
@@ -547,27 +554,32 @@ int CustomMastu(IDAM_PLUGIN_INTERFACE* plugin_interface) {
         //----------------------------------------------------------------------------------------
         // Standard methods: version, builddate, defaultmethod, maxinterfaceversion
 
+        int err {0};
         if (STR_IEQUALS(plugin_func, "help")) {
-            return plugin.help(plugin_interface);
+            err = plugin.help(plugin_interface);
         } else if (STR_IEQUALS(plugin_func, "version")) {
-            return plugin.version(plugin_interface);
+            err = plugin.version(plugin_interface);
         } else if (STR_IEQUALS(plugin_func, "builddate")) {
-            return plugin.build_date(plugin_interface);
+            err = plugin.build_date(plugin_interface);
         } else if (STR_IEQUALS(plugin_func, "defaultmethod")) {
-            return plugin.default_method(plugin_interface);
+            err = plugin.default_method(plugin_interface);
         } else if (STR_IEQUALS(plugin_func, "maxinterfaceversion")) {
-            return plugin.max_interface_version(plugin_interface);
+            err = plugin.max_interface_version(plugin_interface);
         } else if (STR_IEQUALS(plugin_func, "custom_passive_structures")) {
-            return plugin.custom_passive_structures(plugin_interface);
+            err = plugin.custom_passive_structures(plugin_interface);
         } else if (STR_IEQUALS(plugin_func, "pf_coil_current")) {
-            return plugin.pf_coil_current(plugin_interface);
+            err = plugin.pf_coil_current(plugin_interface);
         } else if (STR_IEQUALS(plugin_func, "pf_conn_matrix")) {
-            return plugin.pf_conn_matrix(plugin_interface);
+            err = plugin.pf_conn_matrix(plugin_interface);
         } else {
-            RAISE_PLUGIN_ERROR("Unknown function requested!");
+            RAISE_PLUGIN_ERROR_AND_EXIT("Unknown function requested!", plugin_interface);
         }
+        if (err != 0) {
+            RAISE_PLUGIN_ERROR_AND_EXIT("Bad error status returned from CUSTOM_MASTU plugin", plugin_interface);
+        }
+        return err;
     } catch (const std::exception& ex) {
-        RAISE_PLUGIN_ERROR(ex.what());
+        RAISE_PLUGIN_ERROR_AND_EXIT(ex.what(), plugin_interface);
     }
 }
 
