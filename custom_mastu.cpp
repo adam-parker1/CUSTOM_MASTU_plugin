@@ -463,10 +463,14 @@ int CustomMastuPlugin::custom_passive_structures(IDAM_PLUGIN_INTERFACE* interfac
     std::string geom_request = fmt::format("GEOM::get(signal={}, Config=1)", signal_str);
 
     auto maybe_result = get_data(geom_request, std::to_string(source), host, port); //throws
+    if (!maybe_result.has_value()) {
+       throw std::runtime_error("Error retrieving data in custom_passive_structures function");
+    }
 
     const uda::Result& data = maybe_result->get();
     if (!data.isTree()) {
         RAISE_PLUGIN_ERROR("Returned data is not of expected tree structure");
+        return 1;
     }
 
     std::deque<std::string> split_vec{split_request(key_str)};
