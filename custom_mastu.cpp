@@ -61,9 +61,9 @@ class CustomMastuPlugin {
     [[nodiscard]] std::optional<std::reference_wrapper<const uda::Result>> check_cache(const std::string& key) const;
      std::optional<std::reference_wrapper<const uda::Result>>get_data(std::string_view signal, std::string_view source, std::string_view host, int port);
 
-    bool init_ = false;
-    std::unordered_map<std::string, const uda::Result&> cache_;
-    bool cache_enabled_ = true;
+     bool init_ = false;
+     std::unordered_map<std::string, const uda::Result&> cache_;
+     bool cache_enabled_ = true;
 
 };
 
@@ -73,6 +73,45 @@ std::deque<std::string> split_request(std::string_view var) {
     boost::split(split_vec, var, boost::is_any_of("."));
     return split_vec;
 }
+
+namespace {
+constexpr size_t size_of_uda_type(int type_enum)
+{
+    switch (type_enum) {
+        case UDA_TYPE_CHAR:
+            return sizeof(char);
+        case UDA_TYPE_SHORT:
+            return sizeof(short);
+        case UDA_TYPE_INT:
+            return sizeof(int);
+        case UDA_TYPE_LONG:
+            return sizeof(long);
+        case UDA_TYPE_LONG64:
+            return sizeof(int64_t);
+        case UDA_TYPE_UNSIGNED_CHAR:
+            return sizeof(unsigned char);
+        case UDA_TYPE_UNSIGNED_SHORT:
+            return sizeof(unsigned short);
+        case UDA_TYPE_UNSIGNED_INT:
+            return sizeof(unsigned int);
+        case UDA_TYPE_UNSIGNED_LONG:
+            return sizeof(unsigned long);
+        case UDA_TYPE_UNSIGNED_LONG64:
+            return sizeof(uint64_t);
+        case UDA_TYPE_FLOAT:
+            return sizeof(float);
+        case UDA_TYPE_DOUBLE:
+            return sizeof(double);
+        case UDA_TYPE_COMPLEX:
+            return sizeof(COMPLEX);
+        case UDA_TYPE_DCOMPLEX:
+            return sizeof(DCOMPLEX);
+        default:
+            throw std::runtime_error(std::string("uda type ") + std::to_string(type_enum) +
+                    " not implemented for json_imas_mapping cache");
+    }
+}
+} // anon namespace
 
 int tree_check(uda::TreeNode& temp_tree) {
 
@@ -445,7 +484,8 @@ int CustomMastuPlugin::pf_coil_current(IDAM_PLUGIN_INTERFACE* interface) {
 
     DATA_BLOCK* data_block = interface->data_block;
     const char* raw_data = data.raw_data();
-    error_code = setReturnData(data_block, const_cast<void*>(reinterpret_cast<const void*>(raw_data)), data.size(), 
+    error_code = setReturnData(data_block, const_cast<void*>(reinterpret_cast<const void*>(raw_data)), 
+            data.size() * size_of_uda_type(data.uda_type()), 
             (UDA_TYPE)data.uda_type(), static_cast<int>(data.rank()), shape.data(), nullptr);
 
     // error_code = callPlugin(interface->pluginList, request_str.c_str(), interface);
