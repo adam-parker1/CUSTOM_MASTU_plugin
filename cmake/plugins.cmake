@@ -28,7 +28,7 @@ macro( uda_plugin )
     "${ARGN}"
   )
 
-    set( BUILT_PLUGINS ${BUILT_PLUGINS} "${PLUGIN_NAME}" PARENT_SCOPE )
+    set( BUILT_PLUGINS ${BUILT_PLUGINS} "${PLUGIN_NAME}" )
 
     if( NOT PLUGIN_VERSION )
         set( PLUGIN_VERSION "0.0.0" )

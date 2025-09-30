@@ -41,6 +41,7 @@ uda_plugin(
 )
 
 # Generate scripts
+list( GET UDA_DIR 0 UDA_HOME )
 string( REGEX REPLACE ";" " " PLUGINS "${BUILT_PLUGINS}" )
 configure_file(
     ${CMAKE_CURRENT_SOURCE_DIR}/scripts/activate-plugins.sh.in
