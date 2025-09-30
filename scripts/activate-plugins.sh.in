@@ -1,0 +1,9 @@
+#!/bin/bash
+
+UDA_HOME=@UDA_HOME@
+PLUGINS_HOME=@CMAKE_INSTALL_PREFIX@
+
+for PLUGIN in @PLUGINS@
+do
+    $UDA_HOME/bin/install_plugin -u $PLUGINS_HOME install $PLUGIN
+done
