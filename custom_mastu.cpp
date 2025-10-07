@@ -367,6 +367,10 @@ int CustomMastuPlugin::pf_coil_current(IDAM_PLUGIN_INTERFACE* interface) {
     data_block->rank = 0;
     data_block->dims = nullptr;
 
+    int port{0};
+    FIND_REQUIRED_INT_VALUE(request_data->nameValueList, port);
+    const char* host{nullptr};
+    FIND_REQUIRED_STRING_VALUE(request_data->nameValueList, host);
     int source{0};
     FIND_REQUIRED_INT_VALUE(request_data->nameValueList, source);
     const char* signal{nullptr};
@@ -378,21 +382,21 @@ int CustomMastuPlugin::pf_coil_current(IDAM_PLUGIN_INTERFACE* interface) {
     int error_code{1};
 
     std::stringstream request;
-    request << "UDA::get(signal=" << signal_str << ",source=" << source << ")";
+    request << "UDA::get(signal=" << signal_str << ",source=" << source << ",host=" << host << ",port=" << port << ")";
     const auto request_str = request.str();
 
+
     if (split_signal.back() == "PC") {
-        std::vector<float> temporary_vector{0.};
-        error_code = imas_json_plugin::uda_helpers::setReturnDataArrayType_Vec(data_block, temporary_vector);
-    } else {
-        error_code = callPlugin(interface->pluginList, request_str.c_str(), interface);
-        if (split_signal.back() == "P1") {
-            auto* data = reinterpret_cast<float*>(data_block->data);
-            const size_t array_size(data_block->data_n);
-            const auto span = gsl::span{data, array_size};
-            std::for_each(span.begin(), span.end(), [&](float& elem) { elem *= 0.5; });
-            error_code = 0;
-        }
+        return error_code;
+    }
+
+    error_code = callPlugin(interface->pluginList, request_str.c_str(), interface);
+    if (split_signal.back() == "P1") {
+        auto* data = reinterpret_cast<float*>(data_block->data);
+        const size_t array_size(data_block->data_n);
+        const auto span = gsl::span{data, array_size};
+        std::for_each(span.begin(), span.end(), [&](float& elem) { elem *= 0.5; });
+        error_code = 0;
     }
 
     return error_code;
@@ -407,12 +411,13 @@ int CustomMastuPlugin::pf_conn_matrix(IDAM_PLUGIN_INTERFACE* interface) {
     data_block->rank = 0;
     data_block->dims = nullptr;
 
-    const char* ps_name{nullptr};
-    FIND_REQUIRED_STRING_VALUE(request_data->nameValueList, ps_name);
-    std::string ps_name_str{ps_name};
+    const char* signal{nullptr};
+    FIND_REQUIRED_STRING_VALUE(request_data->nameValueList, signal);
+    std::string ps_name_str{signal};
 
-    std::string const map_dir = getenv("UDA_JSON_MAPPING_DIR"); // NOLINT(concurrency-mt-unsafe)
-    auto file_path = map_dir + "/mastu/pf_active/pf_connections.json";
+    // std::string const map_dir = getenv("UDA_JSON_MAPPING_DIR"); // NOLINT(concurrency-mt-unsafe)
+    std::string const map_dir = "/Users/aparker/2025-work/mapping/250721-libtokamap-updates/uda-install/etc/JSON_mappings/";
+    auto file_path = map_dir + "MAST-U/pf_active/pf_connections.json";
     std::ifstream conn_file;
     conn_file.open(file_path);
 
