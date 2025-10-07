@@ -223,43 +223,57 @@ int handle_oblique(IDAM_PLUGIN_INTERFACE* interface, uda::TreeNode& final_tree, 
     }
 
     const auto temp_var = get_float_var(final_tree, final_var, element);
-    const auto deg2rad = M_PI / 180.0;
+    const float deg2rad = M_PI / 180.0;
 
     if (final_var == "centreR") {
         // lower left corner - r
         const auto temp_angle2 = get_float_var(final_tree, "shapeAngle2", element);
         const auto temp_dR = get_float_var(final_tree, "dR", element);
         const auto temp_dZ = get_float_var(final_tree, "dZ", element);
-        float atan2 = 0.;
-        if ( temp_angle2 > 0. ) atan2 = 1 / tan(temp_angle2 * deg2rad);
+        float cot_angle2 = 0.;
+        if ( temp_angle2 > 0. ) cot_angle2 = 1 / tan(temp_angle2 * deg2rad);
         return_code = imas_json_plugin::uda_helpers::setReturnDataScalarType<float>(
-            interface->data_block, temp_var - (temp_dR / 2.0) - (temp_dZ / 2.0) * atan2);
+            interface->data_block, temp_var - (temp_dR / 2.0) - (temp_dZ / 2.0) * cot_angle2
+        );
     } else if (final_var == "centreZ") {
         // lower left corner - z
         const auto temp_angle1 = get_float_var(final_tree, "shapeAngle1", element);
         const auto temp_dR = get_float_var(final_tree, "dR", element);
         const auto temp_dZ = get_float_var(final_tree, "dZ", element);
         return_code = imas_json_plugin::uda_helpers::setReturnDataScalarType<float>(
-            interface->data_block, temp_var - (temp_dZ / 2.0) - (temp_dR / 2.0) * tan(temp_angle1 * deg2rad));
+            interface->data_block, temp_var - (temp_dZ / 2.0) - (temp_dR / 2.0) * tan(temp_angle1 * deg2rad)
+        );
     } else if (final_var == "dR") {
         // length_alpha
         const auto temp_angle1 = get_float_var(final_tree, "shapeAngle1", element);
+        float length = temp_var / cos(temp_angle1 * deg2rad);
         return_code = imas_json_plugin::uda_helpers::setReturnDataScalarType<float>(
-            interface->data_block, temp_var / cos(temp_angle1 * deg2rad));
+            interface->data_block, fabs(length)
+        );
     } else if (final_var == "dZ") {
         // length_beta
         auto temp_angle2 = get_float_var(final_tree, "shapeAngle2", element);
         if (temp_angle2 == 0.) temp_angle2 = 90.;
         return_code = imas_json_plugin::uda_helpers::setReturnDataScalarType<float>(
-            interface->data_block, temp_var / sin(temp_angle2 * deg2rad));
+            interface->data_block, temp_var / sin(temp_angle2 * deg2rad)
+        );
     } else if (final_var == "shapeAngle1") {
-        // alpha
-        return_code =
-            imas_json_plugin::uda_helpers::setReturnDataScalarType<float>(interface->data_block, temp_var * deg2rad);
+        // alpha - flip if > 90°
+        float output_angle = (temp_var > 90.0) ? (temp_var - 180.0) : temp_var;
+        return_code = imas_json_plugin::uda_helpers::setReturnDataScalarType<float>(
+            interface->data_block, output_angle * deg2rad
+        );
     } else if (final_var == "shapeAngle2") {
-        // beta
-        return_code = imas_json_plugin::uda_helpers::setReturnDataScalarType<float>(interface->data_block,
-                                                                                    (temp_var - 90.0) * deg2rad);
+        // beta - measured from Z-axis
+        // When angle2=0 (vertical in EFIT++), beta should be 0 (vertical from Z-axis)
+        // NOT -90° which would make it horizontal!
+        if (temp_var == 0.0) {
+            return_code = imas_json_plugin::uda_helpers::setReturnDataScalarType<float>(interface->data_block, 0.0);
+        } else {
+            return_code = imas_json_plugin::uda_helpers::setReturnDataScalarType<float>(
+                interface->data_block, (temp_var - 90.0) * deg2rad
+            );
+        }
     }
 
     return return_code;
