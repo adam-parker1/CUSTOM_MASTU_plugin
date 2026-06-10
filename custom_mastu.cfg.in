@@ -1,1 +1,2 @@
 # export enviromental variables
+export UDA_JSON_MAPPING_DIR="@CMAKE_INSTALL_PREFIX@/etc/mappings"

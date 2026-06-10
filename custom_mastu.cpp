@@ -18,6 +18,60 @@
 #include <cmath>
 #include <sstream>
 
+constexpr float PI = 3.14159265358979323846f;
+
+inline float deg2rad(float deg) { return deg * (PI / 180.0f); }
+
+// Convert shapeAngle2 to actual beta angle
+// shapeAngle2 = 0 means beta = 90° (vertical)
+// shapeAngle2 = 90 means beta = 0° (horizontal)
+inline float shapeAngle2_to_beta(float shapeAngle2_deg) {
+    return 90.0f - shapeAngle2_deg;
+}
+
+float get_r(float centreR, float dR, float dZ, float shapeAngle2_deg) {
+    float beta_deg = shapeAngle2_to_beta(shapeAngle2_deg);
+    float beta = deg2rad(beta_deg);
+
+    float u_r = dR / 2.0f;
+    float v_r = -std::tan(beta) * (dZ / 2.0f);
+    return centreR - (u_r + v_r);
+}
+
+float get_z(float centreZ, float dR, float dZ, float shapeAngle1_deg) {
+    float alpha = deg2rad(shapeAngle1_deg);
+
+    float u_z = std::tan(alpha) * (dR / 2.0f);
+    float v_z = dZ / 2.0f;
+    return centreZ - (u_z + v_z);
+}
+
+float get_length_a(float dR, float shapeAngle1_deg) {
+    float alpha = deg2rad(shapeAngle1_deg);
+
+    float u_r = dR / 2.0f;
+    float u_z = std::tan(alpha) * (dR / 2.0f);
+    return std::hypot(u_r, u_z) * 2.0f;
+}
+
+float get_length_b(float dZ, float shapeAngle2_deg) {
+    float beta_deg = shapeAngle2_to_beta(shapeAngle2_deg);
+    float beta = deg2rad(beta_deg);
+
+    float v_r = -std::tan(beta) * (dZ / 2.0f);
+    float v_z = dZ / 2.0f;
+    return std::hypot(v_r, v_z) * 2.0f;
+}
+
+float get_alpha(float shapeAngle1_deg) {
+    return deg2rad(shapeAngle1_deg);
+}
+
+float get_beta(float shapeAngle2_deg) {
+    float beta_deg = shapeAngle2_to_beta(shapeAngle2_deg);
+    return deg2rad(beta_deg);
+}
+
 class CustomMastuPlugin {
   public:
     void init(IDAM_PLUGIN_INTERFACE* plugin_interface) {
@@ -223,17 +277,17 @@ int handle_oblique(IDAM_PLUGIN_INTERFACE* interface, uda::TreeNode& final_tree, 
     }
 
     const auto temp_var = get_float_var(final_tree, final_var, element);
-    const float deg2rad = M_PI / 180.0;
+    const auto deg2rad = M_PI / 180.0;
 
     if (final_var == "centreR") {
         // lower left corner - r
         const auto temp_angle2 = get_float_var(final_tree, "shapeAngle2", element);
         const auto temp_dR = get_float_var(final_tree, "dR", element);
         const auto temp_dZ = get_float_var(final_tree, "dZ", element);
-        float cot_angle2 = 0.;
-        if ( temp_angle2 > 0. ) cot_angle2 = 1 / tan(temp_angle2 * deg2rad);
+        float atan2 = 0.;
+        if ( temp_angle2 > 0. ) atan2 = 1 / tan(temp_angle2 * deg2rad);
         return_code = imas_json_plugin::uda_helpers::setReturnDataScalarType<float>(
-            interface->data_block, temp_var - (temp_dR / 2.0) - (temp_dZ / 2.0) * cot_angle2
+            interface->data_block, temp_var - (temp_dR / 2.0) - (temp_dZ / 2.0) * atan2
         );
     } else if (final_var == "centreZ") {
         // lower left corner - z
@@ -381,10 +435,6 @@ int CustomMastuPlugin::pf_coil_current(IDAM_PLUGIN_INTERFACE* interface) {
     data_block->rank = 0;
     data_block->dims = nullptr;
 
-    int port{0};
-    FIND_REQUIRED_INT_VALUE(request_data->nameValueList, port);
-    const char* host{nullptr};
-    FIND_REQUIRED_STRING_VALUE(request_data->nameValueList, host);
     int source{0};
     FIND_REQUIRED_INT_VALUE(request_data->nameValueList, source);
     const char* signal{nullptr};
@@ -396,21 +446,23 @@ int CustomMastuPlugin::pf_coil_current(IDAM_PLUGIN_INTERFACE* interface) {
     int error_code{1};
 
     std::stringstream request;
-    request << "UDA::get(signal=" << signal_str << ",source=" << source << ",host=" << host << ",port=" << port << ")";
+    request << "UDA::get(signal=" << signal_str << ",source=" << source << ")";
     const auto request_str = request.str();
 
 
     if (split_signal.back() == "PC") {
-        return error_code;
-    }
-
-    error_code = callPlugin(interface->pluginList, request_str.c_str(), interface);
-    if (split_signal.back() == "P1") {
-        auto* data = reinterpret_cast<float*>(data_block->data);
-        const size_t array_size(data_block->data_n);
-        const auto span = gsl::span{data, array_size};
-        std::for_each(span.begin(), span.end(), [&](float& elem) { elem *= 0.5; });
-        error_code = 0;
+        //std::vector<float> temporary_vector{0.};
+        //error_code = imas_json_plugin::uda_helpers::setReturnDataArrayType_Vec(data_block, temporary_vector);
+        return 1;
+    } else {
+        error_code = callPlugin(interface->pluginList, request_str.c_str(), interface);
+        if (split_signal.back() == "P1") {
+            auto* data = reinterpret_cast<float*>(data_block->data);
+            const size_t array_size(data_block->data_n);
+            const auto span = gsl::span{data, array_size};
+            std::for_each(span.begin(), span.end(), [&](float& elem) { elem *= 0.5; });
+            error_code = 0;
+        }
     }
 
     return error_code;
@@ -429,9 +481,9 @@ int CustomMastuPlugin::pf_conn_matrix(IDAM_PLUGIN_INTERFACE* interface) {
     FIND_REQUIRED_STRING_VALUE(request_data->nameValueList, signal);
     std::string ps_name_str{signal};
 
-    // std::string const map_dir = getenv("UDA_JSON_MAPPING_DIR"); // NOLINT(concurrency-mt-unsafe)
-    std::string const map_dir = "/Users/aparker/2025-work/mapping/250721-libtokamap-updates/uda-install/etc/JSON_mappings/";
-    auto file_path = map_dir + "MAST-U/pf_active/pf_connections.json";
+    std::string const map_dir = getenv("UDA_JSON_MAPPING_DIR"); // NOLINT(concurrency-mt-unsafe)
+    // std::string const file_path = "/home/uda/test_servers/aparker/250917-mapping-libtokamap/IMAS_MASTU_mappings/mappings/pf_active/pf_connections.json";
+    auto file_path = map_dir + "/pf_active/pf_connections.json";
     std::ifstream conn_file;
     conn_file.open(file_path);
 
@@ -450,7 +502,8 @@ int CustomMastuPlugin::pf_conn_matrix(IDAM_PLUGIN_INTERFACE* interface) {
     }
 
     // rows , columns
-    std::vector<size_t> shape{matrix_json.size(), matrix_json.front().size()};
+    //std::vector<size_t> shape{matrix_json.size(), matrix_json.front().size()};
+    std::vector<size_t> shape{matrix_json.front().size(), matrix_json.size()};
 
     std::vector<int> flat_matrix_vector;
     flat_matrix_vector.reserve(matrix_json.front().size() * matrix_json.size());
