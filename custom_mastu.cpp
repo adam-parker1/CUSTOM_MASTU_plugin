@@ -487,8 +487,7 @@ int CustomMastuPlugin::pf_conn_matrix(IDAM_PLUGIN_INTERFACE* interface) {
     std::string ps_name_str{signal};
 
     std::string const map_dir = getenv("UDA_JSON_MAPPING_DIR"); // NOLINT(concurrency-mt-unsafe)
-    // std::string const file_path = "/home/uda/test_servers/aparker/250917-mapping-libtokamap/IMAS_MASTU_mappings/mappings/pf_active/pf_connections.json";
-    auto file_path = map_dir + "/pf_active/pf_connections.json";
+    auto file_path = map_dir + "/mastu/pf_active/pf_connections.json";
     std::ifstream conn_file;
     conn_file.open(file_path);
 
