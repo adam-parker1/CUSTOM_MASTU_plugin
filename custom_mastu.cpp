@@ -440,13 +440,18 @@ int CustomMastuPlugin::pf_coil_current(IDAM_PLUGIN_INTERFACE* interface) {
     const char* signal{nullptr};
     FIND_REQUIRED_STRING_VALUE(request_data->nameValueList, signal);
     std::string signal_str{signal};
+    int port{0};
+    FIND_REQUIRED_INT_VALUE(request_data->nameValueList, port);
+    const char* host{nullptr};
+    FIND_REQUIRED_STRING_VALUE(request_data->nameValueList, host);
+    std::string const host_str{host};
 
     std::deque<std::string> split_signal;
     boost::split(split_signal, signal_str, boost::is_any_of("/"));
     int error_code{1};
 
     std::stringstream request;
-    request << "UDA::get(signal=" << signal_str << ",source=" << source << ")";
+    request << "UDA::get(signal=" << signal_str << ",source=" << source << ",host=" << host_str << ",port=" << port << ")";
     const auto request_str = request.str();
 
 
@@ -498,7 +503,7 @@ int CustomMastuPlugin::pf_conn_matrix(IDAM_PLUGIN_INTERFACE* interface) {
             RAISE_PLUGIN_ERROR(json_error.c_str())
         }
     } else {
-        RAISE_PLUGIN_ERROR("CustomMastuPlugin::pf_conn_matrix - Cannot open JSON globals file")
+        RAISE_PLUGIN_ERROR("CustomMastuPlugin::pf_conn_matrix - Cannot open connection matrix json file")
     }
 
     // rows , columns
